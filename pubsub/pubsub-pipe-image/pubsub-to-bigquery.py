@@ -27,60 +27,38 @@ import utils
 # Get the project ID and pubsub topic from the environment variables set in
 # the 'bigquery-controller.yaml' manifest.
 PROJECT_ID = os.environ['PROJECT_ID']
-PUBSUB_TOPIC = os.environ['PUBSUB_TOPIC']
+SUB_TOPIC = os.environ['SUB_TOPIC']
+PUB_TOPIC = os.environ['PUB_TOPIC']
 NUM_RETRIES = 3
-
-
-def fqrn(resource_type, project, resource):
-    """Returns a fully qualified resource name for Cloud Pub/Sub."""
-    return "projects/{}/{}/{}".format(project, resource_type, resource)
 
 
 def create_subscription(client, project_name, sub_name):
     """Creates a new subscription to a given topic."""
-    print "using pubsub topic: %s" % PUBSUB_TOPIC
-    name = get_full_subscription_name(project_name, sub_name)
-    body = {'topic': PUBSUB_TOPIC}
-    subscription = client.projects().subscriptions().create(
-            name=name, body=body).execute(num_retries=NUM_RETRIES)
-    print 'Subscription {} was created.'.format(subscription['name'])
+    print("using pubsub topic: %s" % SUB_TOPIC)
+    name = utils.get_sub_path(client,project_name, sub_name)
+    subscription = client.create_subscription(name, SUB_TOPIC )
+
+    print('Subscription {} was created.'.format(subscription['name']))
 
 
-def get_full_subscription_name(project, subscription):
-    """Returns a fully qualified subscription name."""
-    return fqrn('subscriptions', project, subscription)
-
-
-def pull_messages(client, project_name, sub_name):
+def pull_messages(subscriber, project_name, sub_name):
     """Pulls messages from a given subscription."""
     BATCH_SIZE = 50
     tweets = []
-    subscription = get_full_subscription_name(project_name, sub_name)
-    body = {
-            'returnImmediately': False,
-            'maxMessages': BATCH_SIZE
-    }
+    sub_path = utils.get_sub_path(subscriber, project_name, sub_name)
     try:
-        resp = client.projects().subscriptions().pull(
-                subscription=subscription, body=body).execute(
-                        num_retries=NUM_RETRIES)
+        resp = subscriber.pull(sub_path,max_messages=BATCH_SIZE)
     except Exception as e:
-        print "Exception: %s" % e
+        print("Exception: %s" % e)
         time.sleep(0.5)
         return
-    receivedMessages = resp.get('receivedMessages')
-    if receivedMessages is not None:
+    if resp.received_messages:
         ack_ids = []
-        for receivedMessage in receivedMessages:
-                message = receivedMessage.get('message')
-                if message:
-                        tweets.append(
-                            base64.urlsafe_b64decode(str(message.get('data'))))
-                        ack_ids.append(receivedMessage.get('ackId'))
-        ack_body = {'ackIds': ack_ids}
-        client.projects().subscriptions().acknowledge(
-                subscription=subscription, body=ack_body).execute(
-                        num_retries=NUM_RETRIES)
+        for r in resp.received_messages:
+            if r.message:
+                tweets.append(r.message.data.decode('utf-8'))
+                ack_ids.append(r.ack_id)
+            subscriber.acknowledge(sub_path, ack_ids)
     return tweets
 
 
@@ -102,8 +80,8 @@ def write_to_bq(pubsub, sub_name, bigquery):
                 for res in twmessages:
                     try:
                         tweet = json.loads(res)
-                    except Exception, bqe:
-                        print bqe
+                    except Exception as bqe:
+                        print(bqe)
                     # First do some massaging of the raw data
                     mtweet = utils.cleanup(tweet)
                     # We only want to write tweets to BigQuery; we'll skip
@@ -115,29 +93,29 @@ def write_to_bq(pubsub, sub_name, bigquery):
                     tweets.append(mtweet)
             else:
                 # pause before checking again
-                print 'sleeping...'
+                print('sleeping...')
                 time.sleep(WAIT)
         response = utils.bq_data_insert(bigquery, PROJECT_ID, os.environ['BQ_DATASET'],
                              os.environ['BQ_TABLE'], tweets)
         tweets = []
         count += 1
         if count % 25 == 0:
-            print ("processing count: %s of %s at %s: %s" %
+            print("processing count: %s of %s at %s: %s" %
                    (count, count_max, datetime.datetime.now(), response))
 
 
 if __name__ == '__main__':
-    topic_info = PUBSUB_TOPIC.split('/')
+    topic_info = SUB_TOPIC.split('/')
     topic_name = topic_info[-1]
     sub_name = "tweets-%s" % topic_name
-    print "starting write to BigQuery...."
+    print("starting write to BigQuery....")
     credentials = utils.get_credentials()
     bigquery = utils.create_bigquery_client(credentials)
-    pubsub = utils.create_pubsub_client(credentials)
+    pubsub = utils.create_pubsub_client(credentials,'sub')
     try:
         # TODO: check if subscription exists first
         subscription = create_subscription(pubsub, PROJECT_ID, sub_name)
-    except Exception, e:
-        print e
+    except Exception as e:
+        print(e)
     write_to_bq(pubsub, sub_name, bigquery)
-    print 'exited write loop'
+    print('exited write loop')

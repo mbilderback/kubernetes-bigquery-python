@@ -1,22 +1,22 @@
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: bigquery-controller
+  name: geo-controller
   labels:
-    name: bigquery-controller
+    name: geo-controller
 spec:
   replicas: 2
   template:
     metadata:
       labels:
-        name: bigquery-controller
+        name: geo-controller
     spec:
       containers:
-      - name: bigquery
+      - name: geo-cleanup
         image: gcr.io/atos-ohc-bigdata-demos/twitter-stream
         env:
         - name: PROCESSINGSCRIPT
-          value: pubsub-to-bigquery
+          value: geo-cleanup
         # Change this to your pubsub topic
         - name: PUB_TOPIC
           value: projects/atos-ohc-bigdata-demos/topics/tweet_locations_neo
@@ -25,8 +25,7 @@ spec:
         # Change this to your project ID.
         - name: PROJECT_ID
           value: atos-ohc-bigdata-demos
-        # Change the following two settings to your dataset and table.
-        - name: BQ_DATASET
-          value: twitter_location
-        - name: BQ_TABLE
-          value: tweets
+        - name: ELASTIC_HOST
+          value: 35.227.166.143
+        - name: PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION
+          value: cpp

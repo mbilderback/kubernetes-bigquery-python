@@ -20,11 +20,14 @@ data to BigQuery
 import collections
 import datetime
 import time
+from six import string_types
 
 from apiclient import discovery
 import dateutil.parser
 import httplib2
 from oauth2client.client import GoogleCredentials
+from google.cloud import pubsub_v1
+from google.cloud.pubsub_v1.gapic.subscriber_client import SubscriberClient
 
 SCOPES = ['https://www.googleapis.com/auth/bigquery',
           'https://www.googleapis.com/auth/pubsub']
@@ -47,23 +50,26 @@ def create_bigquery_client(credentials):
     return discovery.build('bigquery', 'v2', http=http)
 
 
-def create_pubsub_client(credentials):
+def create_pubsub_client(credentials,dir):
     """Build the pubsub client."""
-    http = httplib2.Http()
-    credentials.authorize(http)
-    return discovery.build('pubsub', 'v1beta2', http=http)
+    if dir=='pub':
+        client = pubsub_v1.PublisherClient()
+    elif dir=='sub':
+        client = SubscriberClient()
+    return client
 
+def get_sub_path(client, project, sub_name):
+    return client.subscription_path(project, sub_name)
 
 def flatten(lst):
     """Helper function used to massage the raw tweet data."""
     for el in lst:
         if (isinstance(el, collections.Iterable) and
-                not isinstance(el, basestring)):
+                not isinstance(el, string_types)):
             for sub in flatten(el):
                 yield sub
         else:
             yield el
-
 
 def cleanup(data):
     """Do some data massaging."""
@@ -117,5 +123,5 @@ def bq_data_insert(bigquery, project_id, dataset, table, tweets):
         # print "streaming response: %s %s" % (datetime.datetime.now(), response)
         return response
         # TODO: 'invalid field' errors can be detected here.
-    except Exception, e1:
-        print "Giving up: %s" % e1
+    except Exception as e1:
+        print("Giving up: %s" % e1)

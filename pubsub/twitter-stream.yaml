@@ -13,22 +13,24 @@ spec:
     spec:
       containers:
       - name: twitter-to-pubsub
-        image: gcr.io/google-samples/pubsub-bq-pipe:v5
+        image: gcr.io/atos-ohc-bigdata-demos/twitter-stream
         env:
         - name: PROCESSINGSCRIPT
           value: twitter-to-pubsub
         # Change this to your pubsub topic
-        - name: PUBSUB_TOPIC
-          value: projects/your-project/topics/your-topic
+        - name: PUB_TOPIC
+          value: projects/atos-ohc-bigdata-demos/topics/tweet_locations_neo
+        - name: SUB_TOPIC
+          value: projects/atos-ohc-bigdata-demos/topics/tweet_locations_geo
         # Change the following four settings to your twitter credentials
         # information.
         - name: CONSUMERKEY
-          value: xxxx
+          value: 1TxCxtEVA00YHZLGieGEREAz8
         - name: CONSUMERSECRET
-          value: xxxx
+          value: 7nxXWCmZUzuk287eB4YmC84TXPC60DUInaupBC2Dg8kxBZEgLE
         - name: ACCESSTOKEN
-          value: xxxx
+          value: 104321951-YqL3WHPPiGuKzkhTKB6ZNGDHdyD5P72Flx7Lxb80
         - name: ACCESSTOKENSEC
-          value: xxxx
+          value: J0oGn9MzWbQBFKWUVijeS2CwtRXUVOrfp68LACJ5qKXwL
         - name: TWSTREAMMODE
-          value: sample
+          value: full

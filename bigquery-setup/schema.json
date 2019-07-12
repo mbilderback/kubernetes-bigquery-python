@@ -1690,5 +1690,10 @@
     "name": "lang",
     "type": "STRING",
     "mode": "NULLABLE"
+  },
+  {
+    "name": "correct_location",
+    "type": "STRING",
+    "mode": "NULLABLE"
   }
 ]
