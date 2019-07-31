@@ -3,6 +3,8 @@ FROM python:3
 RUN pip install --upgrade pip setuptools
 ADD requirements.txt /requirements.txt
 RUN pip install -r requirements.txt
+ADD mordecai/ mordecai/
+RUN pip install mordecai/
 RUN python -m spacy download en_core_web_lg
 
 
